@@ -22,7 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <iostream>
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <string>
@@ -139,7 +139,7 @@ struct Networks {
 };
 
 
-}  // namespace Stockfish
+}  // namespace Stockfish::Eval::NNUE
 
 template<typename ArchT, typename FeatureTransformerT>
 struct std::hash<Stockfish::Eval::NNUE::Network<ArchT, FeatureTransformerT>> {
