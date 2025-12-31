@@ -262,7 +262,12 @@ Network<Arch, Transformer>::trace_evaluate(const Position&                      
 template<typename Arch, typename Transformer>
 void Network<Arch, Transformer>::load_user_net(const std::string& dir,
                                                const std::string& evalfilePath) {
-    std::ifstream stream(dir + evalfilePath, std::ios::binary);
+    std::string path = dir;
+    if (!path.empty() && path.back() != '/' && path.back() != '\\')
+        path += '/';
+    path += evalfilePath;
+
+    std::ifstream stream(path, std::ios::binary);
     auto          description = load(stream);
 
     if (description.has_value())
@@ -277,17 +282,21 @@ template<typename Arch, typename Transformer>
 void Network<Arch, Transformer>::load_internal() {
     // C++ way to prepare a buffer for a memory stream
     class MemoryBuffer: public std::basic_streambuf<char> {
-       public:
-        MemoryBuffer(char* p, size_t n) {
-            setg(p, p, p + n);
-            setp(p, p + n);
+      public:
+        MemoryBuffer(const char* p, std::size_t n) {
+            // Read-only: only set the get area. Do not set a put area.
+            auto* begin = const_cast<char*>(p);
+            setg(begin, begin, begin + n);
         }
+
+      protected:
+        int_type overflow(int_type) override { return traits_type::eof(); }
+        std::streamsize xsputn(const char*, std::streamsize) override { return 0; }
     };
 
     const auto embedded = get_embedded(embeddedType);
 
-    MemoryBuffer buffer(const_cast<char*>(reinterpret_cast<const char*>(embedded.data)),
-                        size_t(embedded.size));
+    MemoryBuffer buffer(reinterpret_cast<const char*>(embedded.data), std::size_t(embedded.size));
 
     std::istream stream(&buffer);
     auto         description = load(stream);
@@ -319,10 +328,13 @@ bool Network<Arch, Transformer>::save(std::ostream&      stream,
 
 template<typename Arch, typename Transformer>
 std::optional<std::string> Network<Arch, Transformer>::load(std::istream& stream) {
-    initialize();
     std::string description;
 
-    return read_parameters(stream, description) ? std::make_optional(description) : std::nullopt;
+    if (!read_parameters(stream, description))
+        return std::nullopt;
+
+    initialize();
+    return std::make_optional(description);
 }
 
 
